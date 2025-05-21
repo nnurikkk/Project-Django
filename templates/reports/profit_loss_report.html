@@ -1,0 +1,377 @@
+{% extends 'core/base.html' %}
+{% load humanize %}
+
+{% block title %}Profit & Loss Report - Rental Income Manager{% endblock %}
+
+{% block page_title %}Profit & Loss Report{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">Profit & Loss Report</h1>
+        <div>
+            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#exportModal">
+                <i class="fas fa-file-export me-1"></i> Export Report
+            </button>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="card-title mb-0">Report Parameters</h5>
+        </div>
+        <div class="card-body">
+            <form method="post" action="{% url 'profit_loss_report' %}">
+                {% csrf_token %}
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label for="start_date" class="form-label">Start Date</label>
+                        <input type="date" name="start_date" id="start_date" class="form-control" value="{{ start_date|date:'Y-m-d' }}" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="end_date" class="form-label">End Date</label>
+                        <input type="date" name="end_date" id="end_date" class="form-control" value="{{ end_date|date:'Y-m-d' }}" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="properties" class="form-label">Properties</label>
+                        <select name="properties" id="properties" class="form-select" multiple size="1">
+                            {% for property in properties %}
+                                <option value="{{ property.id }}" {% if property in selected_properties %}selected{% endif %}>{{ property.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">Leave empty to include all properties</small>
+                    </div>
+                    <div class="col-12 text-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-sync me-1"></i> Generate Report
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Summary -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Financial Summary</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="stats-card income h-100">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <div class="stats-title">Total Income</div>
+                                <div class="stats-value">${{ total_income|floatformat:2|intcomma }}</div>
+                            </div>
+                            <div class="stats-icon">
+                                <i class="fas fa-money-bill-wave text-success"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="stats-card expenses h-100">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <div class="stats-title">Total Expenses</div>
+                                <div class="stats-value">${{ total_expenses|floatformat:2|intcomma }}</div>
+                            </div>
+                            <div class="stats-icon">
+                                <i class="fas fa-receipt text-danger"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="stats-card profit h-100">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <div class="stats-title">Net Profit/Loss</div>
+                                <div class="stats-value {% if net_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ net_profit|floatformat:2|intcomma }}
+                                </div>
+                                <div class="text-muted">{{ start_date|date:"M d, Y" }} - {{ end_date|date:"M d, Y" }}</div>
+                            </div>
+                            <div class="stats-icon">
+                                <i class="fas fa-chart-line {% if net_profit >= 0 %}text-success{% else %}text-danger{% endif %}"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Property Performance -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Property Performance</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Property</th>
+                            <th class="text-end">Income</th>
+                            <th class="text-end">Expenses</th>
+                            <th class="text-end">Profit/Loss</th>
+                            <th class="text-end">Profit Margin</th>
+                            <th>Cash Flow</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for property, data in property_profit_loss.items %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'property_detail' property.id %}" class="text-decoration-none">
+                                        {{ property.name }}
+                                    </a>
+                                </td>
+                                <td class="text-end">${{ data.income|floatformat:2|intcomma }}</td>
+                                <td class="text-end">${{ data.expenses|floatformat:2|intcomma }}</td>
+                                <td class="text-end {% if data.profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ data.profit|floatformat:2|intcomma }}
+                                </td>
+                                <td class="text-end">
+                                    {% if data.income > 0 %}
+                                        {% widthratio data.profit data.income 100 %}%
+                                    {% else %}
+                                        0%
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="progress" style="height: 8px;">
+                                        {% if data.profit >= 0 %}
+                                            <div class="progress-bar bg-success" role="progressbar" 
+                                                style="width: {% widthratio data.profit total_profit 100 %}%;" 
+                                                aria-valuenow="{% widthratio data.profit total_profit 100 %}" 
+                                                aria-valuemin="0" 
+                                                aria-valuemax="100"></div>
+                                        {% else %}
+                                            <div class="progress-bar bg-danger" role="progressbar" 
+                                                style="width: {% if total_loss %}{% widthratio data.profit|floatformat:"-2"|cut:"-" total_loss 100 %}{% else %}100{% endif %}%;" 
+                                                aria-valuenow="{% if total_loss %}{% widthratio data.profit|floatformat:"-2"|cut:"-" total_loss 100 %}{% else %}100{% endif %}" 
+                                                aria-valuemin="0" 
+                                                aria-valuemax="100"></div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-3">No data available for the selected period</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Monthly Breakdown -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Monthly Performance</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Month</th>
+                            <th class="text-end">Income</th>
+                            <th class="text-end">Expenses</th>
+                            <th class="text-end">Profit/Loss</th>
+                            <th class="text-end">Profit Margin</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for month_data in monthly_data %}
+                            <tr>
+                                <td>{{ month_data.month }}</td>
+                                <td class="text-end">${{ month_data.income|floatformat:2|intcomma }}</td>
+                                <td class="text-end">${{ month_data.expenses|floatformat:2|intcomma }}</td>
+                                <td class="text-end {% if month_data.profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ month_data.profit|floatformat:2|intcomma }}
+                                </td>
+                                <td class="text-end">
+                                    {% if month_data.income > 0 %}
+                                        {% widthratio month_data.profit month_data.income 100 %}%
+                                    {% else %}
+                                        0%
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-3">No monthly data available for the selected period</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Income and Expense Categories -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Income by Category</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Category</th>
+                                    <th class="text-end">Amount</th>
+                                    <th class="text-end">% of Income</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for category in income_by_category %}
+                                    <tr>
+                                        <td>{{ category.category__name|default:"Uncategorized" }}</td>
+                                        <td class="text-end">${{ category.total|floatformat:2|intcomma }}</td>
+                                        <td class="text-end">
+                                            {% if total_income > 0 %}
+                                                {% widthratio category.total total_income 100 %}%
+                                            {% else %}
+                                                0%
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="3" class="text-center py-3">No income categories found</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Expenses by Category</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Category</th>
+                                    <th class="text-end">Amount</th>
+                                    <th class="text-end">% of Expenses</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for category in expenses_by_category %}
+                                    <tr>
+                                        <td>{{ category.category__name|default:"Uncategorized" }}</td>
+                                        <td class="text-end">${{ category.total|floatformat:2|intcomma }}</td>
+                                        <td class="text-end">
+                                            {% if total_expenses > 0 %}
+                                                {% widthratio category.total total_expenses 100 %}%
+                                            {% else %}
+                                                0%
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="3" class="text-center py-3">No expense categories found</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'profit_loss_report' %}">
+                {% csrf_token %}
+                <!-- Include the current parameters -->
+                <input type="hidden" name="start_date" value="{{ start_date|date:'Y-m-d' }}">
+                <input type="hidden" name="end_date" value="{{ end_date|date:'Y-m-d' }}">
+                {% for property in selected_properties %}
+                    <input type="hidden" name="properties" value="{{ property.id }}">
+                {% endfor %}
+                
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exportModalLabel">Export Report</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Select Export Format</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="export" id="exportPDF" value="pdf" checked>
+                                <label class="form-check-label" for="exportPDF">
+                                    <i class="fas fa-file-pdf text-danger me-1"></i> PDF
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="export" id="exportCSV" value="csv">
+                                <label class="form-check-label" for="exportCSV">
+                                    <i class="fas fa-file-csv text-success me-1"></i> CSV
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="export" id="exportExcel" value="excel">
+                                <label class="form-check-label" for="exportExcel">
+                                    <i class="fas fa-file-excel text-primary me-1"></i> Excel
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="mb-0 text-muted">
+                        <small>
+                            The report will include all financial data for the selected date range and properties.
+                        </small>
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-download me-1"></i> Export
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize select2 for multiple select
+        $('#properties').select2({
+            placeholder: 'Select properties',
+            allowClear: true,
+            width: '100%'
+        });
+    });
+</script>
+{% endblock %}

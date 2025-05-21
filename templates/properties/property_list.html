@@ -1,0 +1,285 @@
+{% extends 'core/base.html' %}
+{% load humanize %}
+
+{% block title %}Properties - Rental Income Manager{% endblock %}
+
+{% block page_title %}Properties{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">Properties</h1>
+        <a href="{% url 'property_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i> Add Property
+        </a>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="card-title mb-0">Filter Properties</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" action="{% url 'property_list' %}">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label for="status" class="form-label">Status</label>
+                        <select name="status" id="status" class="form-select">
+                            <option value="">All Statuses</option>
+                            <option value="available" {% if request.GET.status == 'available' %}selected{% endif %}>Available</option>
+                            <option value="rented" {% if request.GET.status == 'rented' %}selected{% endif %}>Rented</option>
+                            <option value="maintenance" {% if request.GET.status == 'maintenance' %}selected{% endif %}>Under Maintenance</option>
+                            <option value="not_available" {% if request.GET.status == 'not_available' %}selected{% endif %}>Not Available</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="property_type" class="form-label">Property Type</label>
+                        <select name="property_type" id="property_type" class="form-select">
+                            <option value="">All Types</option>
+                            {% for type in property_types %}
+                            <option value="{{ type.id }}" {% if request.GET.property_type == type.id|stringformat:"i" %}selected{% endif %}>{{ type.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="city" class="form-label">City</label>
+                        <select name="city" id="city" class="form-select">
+                            <option value="">All Cities</option>
+                            {% for city in cities %}
+                            <option value="{{ city }}" {% if request.GET.city == city %}selected{% endif %}>{{ city }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="bedrooms" class="form-label">Bedrooms</label>
+                        <select name="bedrooms" id="bedrooms" class="form-select">
+                            <option value="">Any</option>
+                            <option value="1" {% if request.GET.bedrooms == '1' %}selected{% endif %}>1</option>
+                            <option value="2" {% if request.GET.bedrooms == '2' %}selected{% endif %}>2</option>
+                            <option value="3" {% if request.GET.bedrooms == '3' %}selected{% endif %}>3</option>
+                            <option value="4" {% if request.GET.bedrooms == '4' %}selected{% endif %}>4+</option>
+                        </select>
+                    </div>
+                    <div class="col-12 text-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-filter me-1"></i> Apply Filters
+                        </button>
+                        <a href="{% url 'property_list' %}" class="btn btn-outline-secondary ms-2">
+                            <i class="fas fa-redo me-1"></i> Reset
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Summary Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-title">Total Properties</div>
+                        <div class="stats-value">{{ properties.count }}</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="fas fa-building text-primary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-title">Rented Properties</div>
+                        <div class="stats-value">{{ rented_count }}</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="fas fa-key text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-title">Available Properties</div>
+                        <div class="stats-value">{{ available_count }}</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="fas fa-door-open text-info"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-title">Monthly Income</div>
+                        <div class="stats-value">${{ monthly_income|floatformat:2|intcomma }}</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="fas fa-money-bill-wave text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Property List -->
+    <div class="row">
+        {% for property in properties %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card property-card mb-4">
+                <!-- Property Image -->
+                <div class="position-relative">
+                    {% if property.images.filter.is_primary_True.first %}
+                        <img src="{{ property.images.filter.is_primary_True.first.image.url }}" 
+                             class="card-img-top" 
+                             alt="{{ property.name }}">
+                    {% else %}
+                        <img src="https://via.placeholder.com/400x250?text=No+Image" 
+                             class="card-img-top" 
+                             alt="No Image Available">
+                    {% endif %}
+                    
+                    {% if property.status == 'available' %}
+                        <span class="status-badge bg-success text-white">{{ property.get_status_display }}</span>
+                    {% elif property.status == 'rented' %}
+                        <span class="status-badge bg-primary text-white">{{ property.get_status_display }}</span>
+                    {% elif property.status == 'maintenance' %}
+                        <span class="status-badge bg-warning text-dark">{{ property.get_status_display }}</span>
+                    {% else %}
+                        <span class="status-badge bg-secondary text-white">{{ property.get_status_display }}</span>
+                    {% endif %}
+                </div>
+                
+                <!-- Property Details -->
+                <div class="card-body">
+                    <h5 class="card-title">{{ property.name }}</h5>
+                    <p class="card-text text-muted mb-2">
+                        <i class="fas fa-map-marker-alt me-1"></i>
+                        {{ property.address|truncatechars:50 }}
+                    </p>
+                    <p class="card-text rent-price mb-2">${{ property.monthly_rent|floatformat:2|intcomma }}/month</p>
+                    <p class="card-text d-flex justify-content-between mb-3">
+                        <span><i class="fas fa-bed me-1"></i> {{ property.bedrooms }} bd</span>
+                        <span><i class="fas fa-bath me-1"></i> {{ property.bathrooms }} ba</span>
+                        {% if property.square_feet %}
+                        <span><i class="fas fa-ruler-combined me-1"></i> {{ property.square_feet }} sqft</span>
+                        {% endif %}
+                    </p>
+                    
+                    <!-- Current Tenant (if property is rented) -->
+                    {% if property.status == 'rented' and property.current_tenant %}
+                    <div class="mb-3 p-2 bg-light rounded">
+                        <p class="card-text mb-1"><strong>Current Tenant:</strong></p>
+                        <p class="card-text mb-0">
+                            <i class="fas fa-user me-1"></i> {{ property.current_tenant.full_name }}
+                        </p>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Action Buttons -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'property_detail' property.id %}" class="btn btn-primary">
+                            <i class="fas fa-info-circle me-1"></i> Details
+                        </a>
+                        <div>
+                            <a href="{% url 'property_update' property.id %}" class="btn btn-outline-primary">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{% url 'property_delete' property.id %}" class="btn btn-outline-danger ms-2">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info text-center py-5" role="alert">
+                <i class="fas fa-info-circle fa-3x mb-3"></i>
+                <h4>No properties found</h4>
+                <p>No properties match your current filters. Try adjusting your search criteria or add a new property.</p>
+                <a href="{% url 'property_create' %}" class="btn btn-primary mt-2">
+                    <i class="fas fa-plus me-2"></i> Add Property
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="First">
+                        <span aria-hidden="true">&laquo;&laquo;</span>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <a class="page-link" href="#" aria-label="First">
+                        <span aria-hidden="true">&laquo;&laquo;</span>
+                    </a>
+                </li>
+                <li class="page-item disabled">
+                    <a class="page-link" href="#" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <a class="page-link" href="#">{{ num }}</a>
+                    </li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Next">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Last">
+                        <span aria-hidden="true">&raquo;&raquo;</span>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <a class="page-link" href="#" aria-label="Next">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+                <li class="page-item disabled">
+                    <a class="page-link" href="#" aria-label="Last">
+                        <span aria-hidden="true">&raquo;&raquo;</span>
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

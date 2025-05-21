@@ -1,0 +1,56 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Debug Payment View - Rental Income Manager{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h3>Payment List View Debugging</h3>
+        </div>
+        <div class="card-body">
+            <h4>Request Information</h4>
+            <div class="bg-light p-3 mb-3">
+                <p><strong>User:</strong> {{ request.user.username }}</p>
+                <p><strong>GET Params:</strong> {{ request.GET }}</p>
+            </div>
+            
+            <h4>Form Information</h4>
+            <div class="bg-light p-3 mb-3">
+                <p><strong>Is Valid:</strong> {{ form.is_valid }}</p>
+                <p><strong>Errors:</strong> {{ form.errors }}</p>
+                {% if form.is_valid %}
+                <p><strong>Cleaned Data:</strong></p>
+                <pre>{{ form.cleaned_data }}</pre>
+                {% endif %}
+            </div>
+            
+            <h4>Queryset Information</h4>
+            <div class="bg-light p-3 mb-3">
+                <p><strong>Query Parameters:</strong></p>
+                <pre>{{ queryset.query }}</pre>
+                <p><strong>Count:</strong> {{ payments.count }}</p>
+            </div>
+            
+            <h4>Tenant Information</h4>
+            <div class="bg-light p-3">
+                {% for tenant in all_tenants %}
+                <p>
+                    <strong>Tenant ID {{ tenant.id }}:</strong> {{ tenant.full_name }}<br>
+                    <strong>Leases:</strong>
+                    <ul>
+                        {% for lease in tenant.leases.all %}
+                        <li>{{ lease.id }} - {{ lease.property.name }} ({{ lease.status }})</li>
+                        {% empty %}
+                        <li>No leases</li>
+                        {% endfor %}
+                    </ul>
+                </p>
+                {% empty %}
+                <p>No tenants found.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

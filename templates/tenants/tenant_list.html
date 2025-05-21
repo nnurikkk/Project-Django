@@ -1,0 +1,296 @@
+{% extends 'core/base.html' %}
+{% load humanize %}
+
+{% block title %}Tenant List - Rental Income Manager{% endblock %}
+
+{% block page_title %}Tenants{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">Tenants</h1>
+        <div>
+            <a href="{% url 'export_tenants' %}" class="btn btn-outline-success me-2">
+                <i class="fas fa-file-export me-1"></i> Export Tenants
+            </a>
+            <a href="{% url 'tenant_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i> Add Tenant
+            </a>
+        </div>
+    </div>
+    
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-title">Total Tenants</div>
+                        <div class="stats-value">{{ total_tenants }}</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="fas fa-users text-primary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card income">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-title">Active Tenants</div>
+                        <div class="stats-value">{{ active_tenants }}</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="fas fa-user-check text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card warning">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-title">Leases Expiring Soon</div>
+                        <div class="stats-value">{{ expiring_leases }}</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="fas fa-calendar-times text-warning"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-title">New Tenants (30 days)</div>
+                        <div class="stats-value">{{ new_tenants|default:"0" }}</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="fas fa-user-plus text-info"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="card-title mb-0">Filter Tenants</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" action="{% url 'tenant_list' %}">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label for="search" class="form-label">Search</label>
+                        {{ form.search }}
+                    </div>
+                    <div class="col-md-3">
+                        <label for="property" class="form-label">Property</label>
+                        {{ form.property }}
+                    </div>
+                    <div class="col-md-3">
+                        <label for="has_active_lease" class="form-label">Lease Status</label>
+                        {{ form.has_active_lease }}
+                    </div>
+                    <div class="col-md-2">
+                        <label for="sort_by" class="form-label">Sort By</label>
+                        {{ form.sort_by }}
+                    </div>
+                    <div class="col-12 text-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-filter me-1"></i> Apply Filters
+                        </button>
+                        <a href="{% url 'tenant_list' %}" class="btn btn-outline-secondary ms-2">
+                            <i class="fas fa-redo me-1"></i> Reset
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Tenants Grid -->
+    <div class="row">
+        {% for tenant in tenants %}
+        <div class="col-md-6 col-lg-4 col-xl-3">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-light rounded-circle me-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <i class="fas fa-user text-primary fa-2x"></i>
+                        </div>
+                        <div>
+                            <h5 class="card-title mb-0">
+                                <a href="{% url 'tenant_detail' tenant.id %}" class="text-decoration-none">
+                                    {{ tenant.full_name }}
+                                </a>
+                            </h5>
+                            {% if tenant.current_property %}
+                                <small class="text-muted">
+                                    <i class="fas fa-home me-1"></i> {{ tenant.current_property.name }}
+                                </small>
+                            {% else %}
+                                <small class="text-muted">No active lease</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="tenant-details mb-3">
+                        {% if tenant.email %}
+                            <div class="mb-1">
+                                <i class="fas fa-envelope text-muted me-2"></i>
+                                <a href="mailto:{{ tenant.email }}" class="text-decoration-none">{{ tenant.email }}</a>
+                            </div>
+                        {% endif %}
+                        
+                        {% if tenant.phone %}
+                            <div class="mb-1">
+                                <i class="fas fa-phone text-muted me-2"></i>
+                                <a href="tel:{{ tenant.phone }}" class="text-decoration-none">{{ tenant.phone }}</a>
+                            </div>
+                        {% endif %}
+                        
+                        {% if tenant.current_lease %}
+                            <div class="mb-1">
+                                <i class="fas fa-calendar-alt text-muted me-2"></i>
+                                <span>
+                                    Lease: {{ tenant.current_lease.start_date|date:"M d, Y" }} to {{ tenant.current_lease.end_date|date:"M d, Y" }}
+                                </span>
+                            </div>
+                            <div>
+                                <i class="fas fa-money-bill-wave text-muted me-2"></i>
+                                <span>Rent: ${{ tenant.current_lease.rent_amount|floatformat:2|intcomma }}</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex">
+                        <a href="{% url 'tenant_detail' tenant.id %}" class="btn btn-outline-primary flex-grow-1">
+                            <i class="fas fa-eye me-1"></i> Details
+                        </a>
+                        <div class="btn-group flex-grow-1">
+                            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'tenant_update' tenant.id %}">
+                                        <i class="fas fa-edit me-1"></i> Edit
+                                    </a>
+                                </li>
+                                {% if tenant.current_lease %}
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'lease_detail' tenant.current_lease.id %}">
+                                            <i class="fas fa-file-contract me-1"></i> View Lease
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'lease_create_for_tenant' tenant.id %}">
+                                            <i class="fas fa-file-signature me-1"></i> Create Lease
+                                        </a>
+                                    </li>
+                                {% endif %}
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'payment_create_for_tenant' tenant.id %}">
+                                        <i class="fas fa-money-bill me-1"></i> Add Payment
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item text-danger" href="{% url 'tenant_delete' tenant.id %}">
+                                        <i class="fas fa-trash-alt me-1"></i> Delete
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info text-center py-5" role="alert">
+                <i class="fas fa-info-circle fa-3x mb-3"></i>
+                <h4>No tenants found</h4>
+                <p>No tenants match your current filters. Try adjusting your search criteria or add a new tenant.</p>
+                <a href="{% url 'tenant_create' %}" class="btn btn-primary mt-2">
+                    <i class="fas fa-plus me-2"></i> Add Tenant
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="First">
+                        <span aria-hidden="true">&laquo;&laquo;</span>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <a class="page-link" href="#" aria-label="First">
+                        <span aria-hidden="true">&laquo;&laquo;</span>
+                    </a>
+                </li>
+                <li class="page-item disabled">
+                    <a class="page-link" href="#" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <a class="page-link" href="#">{{ num }}</a>
+                    </li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Next">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Last">
+                        <span aria-hidden="true">&raquo;&raquo;</span>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <a class="page-link" href="#" aria-label="Next">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+                <li class="page-item disabled">
+                    <a class="page-link" href="#" aria-label="Last">
+                        <span aria-hidden="true">&raquo;&raquo;</span>
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}
